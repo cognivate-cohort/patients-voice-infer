@@ -4,6 +4,14 @@ import sounddevice as sd
 from scipy.io.wavfile import write
 import whisper
 import requests
+from langchain.chat_models import ChatGoogleGenerativeAI
+from langchain.schema import HumanMessage
+
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+if not GOOGLE_API_KEY:
+    raise EnvironmentError("GOOGLE_API_KEY not set in environment")
+
+llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", google_api_key=GOOGLE_API_KEY)
 
 if os.path.exists("Patient_Display.csv"):
     df = pd.read_csv("Patient_Display.csv")
@@ -27,15 +35,14 @@ else:
     }
     token = 100000
 
-def query(input):
+def query(input_text):
     prompt = f"""
 You are an information extraction engine.
-
 From the following patient message, extract:
 Name, Surname, Age, Gender, Symptoms
 
 Message:
-\"\"\"{input}\"\"\"
+"""{input_text}"""
 
 Return output in exactly this one-line format:
 NAME SURNAME AGE GENDER SYMPTOM1 SYMPTOM2 ...
@@ -47,20 +54,13 @@ Rules:
 - Do NOT return anything else. No labels, no punctuation.
 - Only return the final line.
 """
-    response = requests.post(
-        "http://localhost:11434/api/generate",
-        json={
-            "model": "mistral",
-            "prompt": prompt,
-            "stream": False
-        }
-    )
-    return response.json()["response"].strip()
+    response = llm([HumanMessage(content=prompt)])
+    return response.content.strip()
 
 def assignment(symptoms):
     prompt = f"""
 out of the given doctor that i am listing choose the appropriate doctor
-\"\"\"{symptoms}\"\"\"
+"""{symptoms}"""
 Dr. ABC (Cardiologist)
 Dr. DEF (Neurologist)
 Dr. GHI (Pulmonologist)
@@ -70,15 +70,8 @@ Dr. MNO (Orthopedists)
 your result should be as follows 
 Dr. ___ (specialty)
 """
-    response = requests.post(
-        "http://localhost:11434/api/generate",
-        json={
-            "model": "mistral",
-            "prompt": prompt,
-            "stream": False
-        }
-    )
-    return response.json()["response"].strip()
+    response = llm([HumanMessage(content=prompt)])
+    return response.content.strip()
 
 while True:
     duration = 20
@@ -127,10 +120,10 @@ while True:
 
 df = pd.DataFrame(info)
 
-df[df["Doctor"] == "Dr. ABC (Cardiologist)"].to_csv("Cardiology(ABC).csv", index=False, encoding='utf-8-sig')
-df[df["Doctor"] == "Dr. DEF (Neurologist)"].to_csv("Neurology(DEF).csv", index=False, encoding='utf-8-sig')
-df[df["Doctor"] == "Dr. GHI (Pulmonologist)"].to_csv("Pulmonology(GHI).csv", index=False, encoding='utf-8-sig')
-df[df["Doctor"] == "Dr. JKL (Gastroenterologist)"].to_csv("Gastroenterology(JKL).csv", index=False, encoding='utf-8-sig')
-df[df["Doctor"] == "Dr. MNO (Orthopedists)"].to_csv("Orthopedic(MNO).csv", index=False, encoding='utf-8-sig')
+df[df["Doctor"] == "Dr. ABC (Cardiologist)"].to_csv("Cardiology(ABC).csv", index=False, encoding='utf-8-sig")
+df[df["Doctor"] == "Dr. DEF (Neurologist)"].to_csv("Neurology(DEF).csv", index=False, encoding='utf-8-sig")
+df[df["Doctor"] == "Dr. GHI (Pulmonologist)"].to_csv("Pulmonology(GHI).csv", index=False, encoding='utf-8-sig")
+df[df["Doctor"] == "Dr. JKL (Gastroenterologist)"].to_csv("Gastroenterology(JKL).csv", index=False, encoding='utf-8-sig")
+df[df["Doctor"] == "Dr. MNO (Orthopedists)"].to_csv("Orthopedic(MNO).csv", index=False, encoding='utf-8-sig")
 
-df[["Names", "token no.", "Doctor"]].to_csv("Patient_Display.csv", index=False, encoding='utf-8-sig')
+df[["Names", "token no.", "Doctor"]].to_csv("Patient_Display.csv", index=False, encoding='utf-8-sig")
