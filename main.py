@@ -113,6 +113,7 @@ while True:
         assigned = assignment(symptoms)
         print("Your doctor is:")
         print(assigned)
+        print(f"Your token no.: P{token}")
         info["Names"].append(name)
         info["Age"].append(age)
         info["Gender"].append(gender)
