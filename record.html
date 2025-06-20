@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🩺 Patient Voice Recorder</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      padding: 20px;
+      background: #e8f6f3;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+      color: #0b5345;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background-color: #117864;
+      color: white;
+      transition: background-color 0.3s;
+    }
+
+    button:hover:not(:disabled) {
+      background-color: #0e6251;
+    }
+
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    #status {
+      margin-top: 20px;
+      white-space: pre-wrap;
+      font-size: 1.1em;
+      color: #154360;
+      max-width: 600px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>🩺 Tell Us About Your Health</h2>
+  <button id="start">🎙 Start Recording</button>
+  <button id="stop" disabled>🛑 Stop & Send</button>
+  <p id="status">Click "Start Recording" and tell us about your health, symptoms, or how you're feeling today.</p>
+
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+
+    document.getElementById("start").onclick = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.start();
+
+        document.getElementById("status").textContent = `🎤 Recording started...
+Please clearly describe your current health condition.
+Mention any symptoms, pain, or recent changes you've noticed.`;
+
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = event => {
+          audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+          document.getElementById("status").textContent = "🌀 Processing your voice message...";
+
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const formData = new FormData();
+          formData.append('audio', audioBlob, 'voice.webm');
+
+          try {
+            document.getElementById("status").textContent = "📤 Sending your report to the medical team...";
+
+            const response = await fetch("https://your-backend.com/voice", {
+              method: "POST",
+              body: formData
+            });
+
+            const result = await response.json();
+
+            document.getElementById("status").textContent = `
+✅ Name: ${result.patientName || 'Not Provided'}
+🧪 Reported Symptoms: ${result.symptoms || 'Not Detected'}
+👨‍⚕️ Assigned Doctor: ${result.doctor || 'TBD'}
+🕒 Appointment Time: ${result.time || 'Pending'}
+            `;
+          } catch (error) {
+            console.error(error);
+            document.getElementById("status").textContent = "❌ We encountered an error while sending your recording.";
+          }
+        };
+
+        document.getElementById("start").disabled = true;
+        document.getElementById("stop").disabled = false;
+      } catch (err) {
+        document.getElementById("status").textContent = "❌ Microphone permission denied or not available.";
+        console.error(err);
+      }
+    };
+
+    document.getElementById("stop").onclick = () => {
+      mediaRecorder.stop();
+      document.getElementById("stop").disabled = true;
+      document.getElementById("start").disabled = false;
+    };
+  </script>
+
+</body>
+</html>
